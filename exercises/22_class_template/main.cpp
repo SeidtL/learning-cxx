@@ -1,5 +1,6 @@
 ﻿#include "../exercise.h"
 #include <cstring>
+#include <vector>
 // READ: 类模板 <https://zh.cppreference.com/w/cpp/language/class_template>
 
 template<class T>
@@ -10,6 +11,10 @@ struct Tensor4D {
     Tensor4D(unsigned int const shape_[4], T const *data_) {
         unsigned int size = 1;
         // TODO: 填入正确的 shape 并计算 size
+        for (int i = 0; i < 4; ++i) {
+            shape[i] = shape_[i];
+            size *= shape_[i];
+        }
         data = new T[size];
         std::memcpy(data, data_, size * sizeof(T));
     }
@@ -28,6 +33,32 @@ struct Tensor4D {
     // 则 `this` 与 `others` 相加时，3 个形状为 `[1, 2, 1, 4]` 的子张量各自与 `others` 对应项相加。
     Tensor4D &operator+=(Tensor4D const &others) {
         // TODO: 实现单向广播的加法
+        size_t stride_self[4]{1, 1, 1, 1};
+        size_t stride_others[4]{1, 1, 1, 1};
+        for (int i = 3; i > 0; --i) {
+            stride_self[i - 1] = stride_self[i] * shape[i];
+            stride_others[i - 1] = stride_others[i] * others.shape[i];
+        }
+        auto index_self = [&] (size_t a, size_t b, size_t c, size_t d) {
+            return a * stride_self[0] + b * stride_self[1] + c * stride_self[2] + d * stride_self[3];
+        };
+        auto index_others = [&] (size_t a, size_t b, size_t c, size_t d) {
+            auto ia = others.shape[0] == 1 ? 0 : a;
+            auto ib = others.shape[1] == 1 ? 0 : b;
+            auto ic = others.shape[2] == 1 ? 0 : c;
+            auto id = others.shape[3] == 1 ? 0 : d;
+            return ia * stride_others[0] + ib * stride_others[1] + ic * stride_others[2] + id * stride_others[3];
+        };
+        for (size_t a = 0; a < shape[0]; ++a) {
+            for (size_t b = 0; b < shape[1]; ++b) {
+                for (size_t c = 0; c < shape[2]; ++c) {
+                    for (size_t d = 0; d < shape[3]; ++d) {
+                        data[index_self(a, b, c, d)] += others.data[index_others(a, b, c, d)];
+                    }
+                }
+            }
+        }
+
         return *this;
     }
 };
